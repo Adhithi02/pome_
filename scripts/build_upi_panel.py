@@ -1,5 +1,4 @@
 import os
-import glob
 import pandas as pd
 
 # ============================================================
@@ -17,30 +16,28 @@ os.makedirs(FINAL_DIR, exist_ok=True)
 print("[OK] Folder structure ready.")
 
 # ============================================================
-# RAW FILE DETECTION
+# DETECT ALL NPCI UPI FILES
 # ============================================================
 
-FOUND = {"npci_upi": None}
+upi_files = []
 
 for f in os.listdir(RAW_DIR):
-    if f.lower().endswith(".xlsx") and "upi" in f.lower():
-        FOUND["npci_upi"] = f"{RAW_DIR}/{f}"
-        break
+    if f.lower().endswith(".xlsx") and f.lower().startswith("npci_upi"):
+        upi_files.append(os.path.join(RAW_DIR, f))
 
-print("\n=== RAW FILE CHECK ===")
-if FOUND["npci_upi"]:
-    print(f"[FOUND]   npci_upi → {FOUND['npci_upi']}")
-else:
-    print("[MISSING] npci_upi")
+if not upi_files:
+    print("[ERROR] No NPCI UPI files found in data/raw/")
     exit()
 
+print("\n[FOUND] NPCI UPI files:")
+for f in sorted(upi_files):
+    print("  ", f)
+
 # ============================================================
-# CLEAN NPCI UPI DATA (UNIT-SAFE)
+# CLEAN FUNCTION (REUSED FOR EACH YEAR)
 # ============================================================
 
 def clean_upi(filepath):
-    print("[*] Cleaning NPCI UPI data...")
-
     df = pd.read_excel(filepath)
 
     # Normalize column names
@@ -53,11 +50,7 @@ def clean_upi(filepath):
         .str.replace(")", "", regex=False)
     )
 
-    print("[INFO] Columns detected:")
-    for c in df.columns:
-        print("  ", c)
-
-    # Identify columns
+    # Identify required columns
     month_col = None
     volume_mn_col = None
     value_cr_col = None
@@ -71,13 +64,12 @@ def clean_upi(filepath):
             value_cr_col = c
 
     if not all([month_col, volume_mn_col, value_cr_col]):
-        raise ValueError("Required columns not found. Check column names above.")
+        raise ValueError(f"Required columns not found in {filepath}")
 
-    # Create clean dataframe
     df = df[[month_col, volume_mn_col, value_cr_col]].copy()
     df.columns = ["ym", "upi_volume_mn", "upi_value_cr"]
 
-    # Convert Volume Mn → Cr
+    # Unit conversion
     df["upi_volume_cr"] = df["upi_volume_mn"] / 10
 
     # Parse month
@@ -88,29 +80,32 @@ def clean_upi(filepath):
     df["month"] = df["ym"].dt.month
     df["ym"] = df["ym"].dt.strftime("%Y-%m")
 
-    # Keep only standardized columns
-    df = df[["ym", "year", "month", "upi_volume_cr", "upi_value_cr"]]
-
-    outpath = f"{PROC_DIR}/upi_monthly.csv"
-    df.to_csv(outpath, index=False)
-
-    print("[✓] UPI cleaned successfully.")
-    print(f"[✓] Saved → {outpath}")
-
-    return df
+    return df[["ym", "year", "month", "upi_volume_cr", "upi_value_cr"]]
 
 # ============================================================
-# RUN CLEANING
+# CLEAN & STACK ALL YEARS
 # ============================================================
 
-clean_upi(FOUND["npci_upi"])
+all_dfs = []
+
+for file in sorted(upi_files):
+    print(f"[*] Processing {file}")
+    df_clean = clean_upi(file)
+    all_dfs.append(df_clean)
+
+final_upi = pd.concat(all_dfs, ignore_index=True)
+
+# Remove duplicates and sort
+final_upi = final_upi.drop_duplicates(subset=["ym"])
+final_upi = final_upi.sort_values("ym")
 
 # ============================================================
-# FINAL PANEL (UPI ONLY FOR NOW)
+# SAVE OUTPUTS
 # ============================================================
 
-panel = pd.read_csv(f"{PROC_DIR}/upi_monthly.csv")
-panel.to_csv(f"{FINAL_DIR}/upi_panel_state_monthly.csv", index=False)
+final_upi.to_csv(f"{PROC_DIR}/upi_monthly_all.csv", index=False)
+final_upi.to_csv(f"{FINAL_DIR}/upi_panel_national_monthly.csv", index=False)
 
-print("\n[✓] Final panel saved:")
-print(f"{FINAL_DIR}/upi_panel_state_monthly.csv")
+print("\n[✓] Combined national UPI dataset created.")
+print(f" → {PROC_DIR}/upi_monthly_all.csv")
+print(f" → {FINAL_DIR}/upi_panel_national_monthly.csv")
