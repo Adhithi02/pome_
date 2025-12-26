@@ -61,6 +61,7 @@ plt.xticks(rotation=90)
 plt.title("UPI Value vs Volume Growth")
 plt.legend()
 plt.tight_layout()
+plt.savefig(r"E:\Desktop\pome\model\results\upi_value_volume_growth.png")
 plt.show()
 
 # -----------------------------
@@ -73,6 +74,7 @@ plt.axhline(0, linestyle="--")
 plt.xticks(rotation=90)
 plt.title("Value–Volume Divergence")
 plt.tight_layout()
+plt.savefig(r"E:\Desktop\pome\model\results\value_volume_divergence.png")
 plt.show()
 
 # -----------------------------
