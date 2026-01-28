@@ -136,15 +136,3 @@ Note: pin versions if you need reproducible environments.
 
 ---
 
-## Contact / Author
-
-Author: Repository owner — see Git history for details.
-
-If you want, I can:
-- convert absolute paths to relative and add CLI args
-- add tests for the cleaning scripts
-- create a small Makefile to automate the whole run-order
-
----
-
-**Happy to expand or tweak this README** (add badges, examples of output tables/figures, or step-by-step screenshots). If you'd like, I can also patch the hard-coded paths to make scripts portable.
